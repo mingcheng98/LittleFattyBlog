@@ -1,0 +1,119 @@
+{# 点击"关于"时的过渡页：全屏遮罩 + 逐字打出欢迎语，短暂停留后再跳转 #}
+<div id="welcome-transition" aria-hidden="true">
+  <div class="welcome-plane">✈️</div>
+  <p class="welcome-text"><span class="welcome-content"></span><span class="welcome-cursor"></span></p>
+</div>
+
+<style>
+  #welcome-transition {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2rem;
+    background: linear-gradient(160deg, #fff6ee, #ffe3d1);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .35s ease, visibility .35s ease;
+  }
+
+  #welcome-transition.active {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .welcome-plane {
+    font-size: 2.6rem;
+    animation: welcome-fly 2.4s ease-in-out infinite;
+  }
+
+  @keyframes welcome-fly {
+    0% { transform: translateX(-60px) translateY(6px) rotate(8deg); }
+    50% { transform: translateX(60px) translateY(-6px) rotate(-4deg); }
+    100% { transform: translateX(-60px) translateY(6px) rotate(8deg); }
+  }
+
+  .welcome-text {
+    margin: 0;
+    padding: 0 1rem;
+    font-size: clamp(1.4rem, 4.5vw, 2.6rem);
+    font-weight: 700;
+    color: #d94e10;
+    min-height: 1.4em;
+  }
+
+  .welcome-cursor {
+    display: inline-block;
+    width: 3px;
+    height: 1em;
+    margin-left: 4px;
+    vertical-align: -0.12em;
+    background: #fc6423;
+    animation: welcome-blink .8s step-end infinite;
+  }
+
+  @keyframes welcome-blink {
+    50% { opacity: 0; }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    #welcome-transition {
+      background: linear-gradient(160deg, #23262d, #38271c);
+    }
+    .welcome-text {
+      color: #ffb28c;
+    }
+    .welcome-cursor {
+      background: #ffb28c;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .welcome-plane {
+      animation: none;
+    }
+    .welcome-cursor {
+      animation: none;
+    }
+  }
+</style>
+
+<script>
+  (function () {
+    var overlay = document.getElementById('welcome-transition');
+    var textEl = overlay.querySelector('.welcome-content');
+    var msg = 'Welcome to My Personal WebPage🥰';
+    // 按码位切分，避免 emoji 被拆成乱码
+    var chars = Array.from(msg);
+    var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    // 过渡总时长：打字约 1.7s + 停留约 0.6s，之后才真正跳转
+    var DURATION = 2300;
+
+    function playTransition(url) {
+      if (reduced.matches) {
+        // 用户偏好减少动效时：静态显示文字，不做打字机
+        textEl.textContent = msg;
+      } else {
+        var i = 0;
+        var typing = setInterval(function () {
+          textEl.textContent = chars.slice(0, ++i).join('');
+          if (i >= chars.length) clearInterval(typing);
+        }, 55);
+      }
+      overlay.classList.add('active');
+      setTimeout(function () { window.location.href = url; }, DURATION);
+    }
+
+    document.addEventListener('click', function (event) {
+      var link = event.target.closest('.menu-item-about a');
+      if (!link) return;
+      // 中键 / Ctrl / Cmd / Shift 点击（新标签页打开）不拦截
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      playTransition(link.href);
+    });
+  })();
+</script>
