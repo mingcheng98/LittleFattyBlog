@@ -10,18 +10,52 @@
 }
 
 // 博客背景图：plane
-// 用 fixed 伪元素承载背景并单独控制透明度，避免正文/侧栏被冲淡
+// 直接铺在 body 上（html 无背景时会传导到画布最底层，不会被主题元素盖住）
+// 透明度由叠加的遮罩控制：alpha 越大背景越淡/越浅，越小越深、越鲜艳
 body {
-  &::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: -1;
-    background: url("/images/plane.jpg") center / cover no-repeat;
-    opacity: 0.3;
-    pointer-events: none;
+  // 亮色模式：白色遮罩 0.5 ≈ 背景图 50% 可见
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5)) center / cover no-repeat fixed,
+    url("../images/plane.jpg") center / cover no-repeat fixed;
+}
+
+// 暗色模式：改用深色遮罩，背景显得更深沉
+@media (prefers-color-scheme: dark) {
+  body {
+    background:
+      linear-gradient(rgba(35, 38, 45, 0.55), rgba(35, 38, 45, 0.55)) center / cover no-repeat fixed,
+      url("../images/plane.jpg") center / cover no-repeat fixed;
+  }
+}
+
+// 版块半透明化：让背景图透出来（文章多了也不会全部盖住）
+// NexT Gemini 的文章卡片/侧栏/页头/分页都用 --content-bg-color，改这一个变量即可
+// 透明度：alpha 越小越透（0.6 更透，0.85 更实）
+:root {
+  --content-bg-color: rgba(255, 255, 255, 0.75);
+  --card-bg-color: rgba(255, 255, 255, 0.75);
+}
+
+// 暗色模式下的半透明版本（对应 NexT 的 #333 / #555）
+@media (prefers-color-scheme: dark) {
+  :root {
+    --content-bg-color: rgba(51, 51, 51, 0.75);
+    --card-bg-color: rgba(85, 85, 85, 0.75);
+  }
+}
+
+// 标签/分类链接统一主题橙色（NexT 默认按文章数渐变用很浅的灰，半透明背景上几乎看不见）
+// 覆盖：标签云、文章底部标签、分类/标签列表页、文章顶部"分类:"链接
+// 以后新增标签/分类自动生效
+.post-tags a,
+.tag-cloud a,
+.tag-list a,
+.category-list a,
+.post-meta-item a[rel="index"] {
+  color: #fc6423;
+  border-bottom-color: rgba(252, 100, 35, 0.4);
+  &:hover {
+    color: darken(#fc6423, 15%);
+    border-bottom-color: darken(#fc6423, 15%);
   }
 }
