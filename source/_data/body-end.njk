@@ -27,13 +27,19 @@
 
   .welcome-plane {
     font-size: 2.6rem;
-    animation: welcome-fly 2.4s ease-in-out infinite;
+  }
+
+  /* 遮罩激活时才起飞：前 48.2%（打字阶段）盘旋一个来回，随后爬升，
+     4.2s 整恰好到达最高点，与 DURATION 对齐实现"最高点处跳转" */
+  #welcome-transition.active .welcome-plane {
+    animation: welcome-fly 4.2s ease-in-out forwards;
   }
 
   @keyframes welcome-fly {
-    0% { transform: translateX(-60px) translateY(6px) rotate(8deg); }
-    50% { transform: translateX(60px) translateY(-6px) rotate(-4deg); }
-    100% { transform: translateX(-60px) translateY(6px) rotate(8deg); }
+    0%    { transform: translate(-60px, 6px) rotate(8deg); }
+    24.1% { transform: translate(60px, -6px) rotate(-4deg); }
+    48.2% { transform: translate(-60px, 6px) rotate(8deg); }
+    100%  { transform: translate(90px, -60px) rotate(-12deg); }
   }
 
   .welcome-text {
@@ -72,7 +78,8 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .welcome-plane {
+    /* 需压过上面 #welcome-transition.active .welcome-plane 的优先级 */
+    #welcome-transition.active .welcome-plane {
       animation: none;
     }
     .welcome-cursor {
@@ -89,8 +96,8 @@
     // 按码位切分，避免 emoji 被拆成乱码
     var chars = Array.from(msg);
     var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
-    // 过渡总时长：打字约 2s + 飞机飞约 2.5s，之后才真正跳转
-    var DURATION = 4700;
+    // 过渡总时长：打字约 2s + 飞机爬升约 2.2s（比最初少 3s），4.2s 与飞行动画对齐，最高点处跳转
+    var DURATION = 4200;
 
     function playTransition(url) {
       if (reduced.matches) {
