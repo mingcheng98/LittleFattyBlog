@@ -85,12 +85,12 @@
   (function () {
     var overlay = document.getElementById('welcome-transition');
     var textEl = overlay.querySelector('.welcome-content');
-    var msg = 'Welcome to My Personal WebPage🥰';
+    var msg = 'Welcome to My Personal URL🥰';
     // 按码位切分，避免 emoji 被拆成乱码
     var chars = Array.from(msg);
     var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
-    // 过渡总时长：打字约 1.7s + 停留约 0.6s，之后才真正跳转
-    var DURATION = 2300;
+    // 过渡总时长：打字约 2s + 停留约 5s（飞机再飞两个来回），之后才真正跳转
+    var DURATION = 7200;
 
     function playTransition(url) {
       if (reduced.matches) {
@@ -101,7 +101,7 @@
         var typing = setInterval(function () {
           textEl.textContent = chars.slice(0, ++i).join('');
           if (i >= chars.length) clearInterval(typing);
-        }, 55);
+        }, 75);
       }
       overlay.classList.add('active');
       setTimeout(function () { window.location.href = url; }, DURATION);
