@@ -89,8 +89,8 @@
     // 按码位切分，避免 emoji 被拆成乱码
     var chars = Array.from(msg);
     var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
-    // 过渡总时长：打字约 2s + 停留约 5s（飞机再飞两个来回），之后才真正跳转
-    var DURATION = 7200;
+    // 过渡总时长：打字约 2s + 飞机飞约 2.5s，之后才真正跳转
+    var DURATION = 4700;
 
     function playTransition(url) {
       if (reduced.matches) {
@@ -104,7 +104,11 @@
         }, 75);
       }
       overlay.classList.add('active');
-      setTimeout(function () { window.location.href = url; }, DURATION);
+      setTimeout(function () {
+        // 标记来自过渡页跳转，落地页不再重复播进站动画
+        try { sessionStorage.setItem('intro-transit', '1'); } catch (e) {}
+        window.location.href = url;
+      }, DURATION);
     }
 
     // 必须用捕获阶段：pjax 把监听器直接绑在链接元素上（目标阶段先于 document 冒泡），
@@ -117,5 +121,169 @@
       event.preventDefault();
       playTransition(link.href);
     }, true);
+  })();
+</script>
+
+{# 进站欢迎页：两行打字 + 卫星飞过屏幕，随后揭示博客 #}
+<div id="site-intro" aria-hidden="true">
+  <p class="intro-line intro-line1"><span class="intro-text1"></span><span class="intro-cursor intro-cursor1"></span></p>
+  <p class="intro-line intro-line2"><span class="intro-text2"></span><span class="intro-cursor intro-cursor2"></span></p>
+  <div class="intro-satellite">🛰️</div>
+</div>
+
+<style>
+  #site-intro {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .8rem;
+    background: linear-gradient(160deg, #fff6ee, #ffe3d1);
+    transition: opacity .6s ease;
+  }
+
+  #site-intro.done {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  #site-intro .intro-line {
+    margin: 0;
+    padding: 0 1rem;
+    min-height: 1.4em;
+    font-weight: 700;
+    text-align: center;
+    color: #d94e10;
+  }
+
+  #site-intro .intro-line1 { font-size: clamp(1.4rem, 4.5vw, 2.6rem); }
+  #site-intro .intro-line2 { font-size: clamp(1.1rem, 3.6vw, 2rem); }
+
+  #site-intro .intro-cursor {
+    display: inline-block;
+    width: 3px;
+    height: 1em;
+    margin-left: 4px;
+    vertical-align: -0.12em;
+    background: #fc6423;
+    animation: welcome-blink .8s step-end infinite;
+  }
+
+  #site-intro .intro-cursor2 { visibility: hidden; }
+  #site-intro .intro-cursor2.on { visibility: visible; }
+  #site-intro .intro-cursor.off { display: none; }
+
+  #site-intro .intro-satellite {
+    position: absolute;
+    left: 50%;
+    top: 68%;
+    font-size: 2.8rem;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  #site-intro.flying .intro-satellite {
+    animation: intro-sat-fly 2.5s ease-in-out forwards;
+  }
+
+  @keyframes intro-sat-fly {
+    0%   { transform: translate(-62vw, 14px) rotate(10deg); opacity: 0; }
+    12%  { opacity: 1; }
+    50%  { transform: translate(0, -16px) rotate(0deg); }
+    88%  { opacity: 1; }
+    100% { transform: translate(62vw, 14px) rotate(-10deg); opacity: 0; }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    #site-intro {
+      background: linear-gradient(160deg, #23262d, #38271c);
+    }
+    #site-intro .intro-line {
+      color: #ffb28c;
+    }
+    #site-intro .intro-cursor {
+      background: #ffb28c;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #site-intro .intro-cursor,
+    #site-intro .intro-satellite {
+      animation: none;
+    }
+  }
+</style>
+
+<script>
+  (function () {
+    var overlay = document.getElementById('site-intro');
+    if (!overlay) return;
+
+    // 从"关于"过渡页跳转过来时不再重复播进站动画
+    try {
+      if (sessionStorage.getItem('intro-transit')) {
+        sessionStorage.removeItem('intro-transit');
+        overlay.remove();
+        return;
+      }
+    } catch (e) {}
+
+    var text1 = overlay.querySelector('.intro-text1');
+    var text2 = overlay.querySelector('.intro-text2');
+    var cursor1 = overlay.querySelector('.intro-cursor1');
+    var cursor2 = overlay.querySelector('.intro-cursor2');
+    var msg1 = "Welcome to mingcheng98's Blog!";
+    var msg2 = '🥭Never Stop Making Progress🥰';
+    // 按码位切分，避免 emoji 被拆成乱码
+    var chars1 = Array.from(msg1);
+    var chars2 = Array.from(msg2);
+    var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    var TYPE_INTERVAL = 75;
+    var FLIGHT = 2500;
+
+    var timers = [];
+    function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+
+    // 揭示博客：清掉未触发的定时器，淡出遮罩后移除（点击跳过也走这里）
+    function reveal() {
+      timers.forEach(clearTimeout);
+      overlay.classList.add('done');
+      setTimeout(function () { overlay.remove(); }, 700);
+    }
+
+    function typeLine(el, chars, done) {
+      var i = 0;
+      (function step() {
+        el.textContent = chars.slice(0, ++i).join('');
+        if (i < chars.length) later(step, TYPE_INTERVAL);
+        else done();
+      })();
+    }
+
+    overlay.addEventListener('click', reveal); // 点击任意处可跳过
+
+    if (reduced.matches) {
+      // 偏好减少动效：两行静态显示，稍作停留后直接进站
+      text1.textContent = msg1;
+      text2.textContent = msg2;
+      cursor1.style.display = 'none';
+      cursor2.style.display = 'none';
+      later(reveal, 1500);
+    } else {
+      typeLine(text1, chars1, function () {
+        cursor1.classList.add('off');
+        cursor2.classList.add('on');
+        typeLine(text2, chars2, function () {
+          cursor2.classList.add('off');
+          overlay.classList.add('flying'); // 卫星起飞
+          later(reveal, FLIGHT);
+        });
+      });
+    }
+
+    later(reveal, 12000); // 兜底：异常情况下 12s 后必定放行
   })();
 </script>
