@@ -8,3 +8,20 @@
     content: "🍊";
   }
 }
+
+// 博客背景图：plane
+// 用 fixed 伪元素承载背景并单独控制透明度，避免正文/侧栏被冲淡
+body {
+  &::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: -1;
+    background: url("/images/plane.jpg") center / cover no-repeat;
+    opacity: 0.3;
+    pointer-events: none;
+  }
+}
