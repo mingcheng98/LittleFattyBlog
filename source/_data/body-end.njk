@@ -107,6 +107,8 @@
       setTimeout(function () { window.location.href = url; }, DURATION);
     }
 
+    // 必须用捕获阶段：pjax 把监听器直接绑在链接元素上（目标阶段先于 document 冒泡），
+    // 只有抢在它之前 preventDefault，pjax 检测到 defaultPrevented 才会放弃拦截
     document.addEventListener('click', function (event) {
       var link = event.target.closest('.menu-item-about a');
       if (!link) return;
@@ -114,6 +116,6 @@
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
       playTransition(link.href);
-    });
+    }, true);
   })();
 </script>
