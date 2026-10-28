@@ -312,14 +312,14 @@
   {%- endfor %}
 ]</script>
 
-{# 文章页侧边栏小卡片：字数统计 + 实时阅读进度 #}
+{# 侧边栏小卡片：文章页显示本文字数 + 实时阅读进度；首页显示全站总字数 #}
 <div id="reading-widget" class="reading-widget" hidden>
-  <div class="reading-row">
+  <div class="reading-row reading-row-count">
     <i class="far fa-file-lines" aria-hidden="true"></i>
     <span class="reading-label">字数统计</span>
     <b class="reading-wordcount">–</b>
   </div>
-  <div class="reading-row">
+  <div class="reading-row reading-row-progress">
     <i class="fas fa-book-open" aria-hidden="true"></i>
     <span class="reading-label">阅读进度</span>
     <b class="reading-progress-text">0%</b>
@@ -476,6 +476,9 @@
     var fill = widget.querySelector('.reading-progress-fill');
     var pctText = widget.querySelector('.reading-progress-text');
     var countEl = widget.querySelector('.reading-wordcount');
+    var countLabel = widget.querySelector('.reading-row-count .reading-label');
+    var progressRow = widget.querySelector('.reading-row-progress');
+    var progressTrack = widget.querySelector('.reading-progress-track');
     var pending = false;
 
     // 首页判定：去掉站点路径前缀后只剩空串或 page/N（带分页时也认作首页）
@@ -491,6 +494,19 @@
       if (n > 9999) return Math.round(n / 1000) + 'k';
       if (n > 999) return (Math.round(n / 100) / 10) + 'k';
       return String(n);
+    }
+
+    // 全站总字数：累加筛选数据 JSON 里各文章的字数（与筛选栏同口径）
+    function siteTotal() {
+      var dataEl = document.getElementById('posts-filter-data');
+      if (!dataEl) return null;
+      try {
+        var total = 0;
+        JSON.parse(dataEl.textContent).forEach(function (p) { total += p.len || 0; });
+        return fmtCount(total);
+      } catch (err) {
+        return null;
+      }
     }
 
     // 字数优先读正文 meta 里 hexo-word-counter 的服务端统计值（pjax 切页后随 .main-inner 一起刷新），
@@ -514,6 +530,7 @@
     // 进度定义：正文顶部抵达视口顶部为 0%，正文底部抵达视口底部为 100%
     function updateProgress() {
       pending = false;
+      if (widget.hidden || progressRow.hidden) return; // 首页只显示总字数，无进度
       var body = document.querySelector('.post-body');
       if (!body) return;
       var rect = body.getBoundingClientRect();
@@ -577,11 +594,27 @@
 
     // 首次加载与每次 pjax 切页后都会触发，重算显隐与数值
     function refresh() {
+      // 首页的摘要列表同样使用 .post-body，先排除，避免把首页误判成文章页
+      var onHome = isHomePage();
       var hasPost = !!document.querySelector('.post-body');
-      widget.hidden = !hasPost;
-      if (hasPost) {
+      var isPost = hasPost && !onHome;
+      if (isPost) {
+        countLabel.textContent = '字数统计';
         countEl.textContent = readCount();
+        progressRow.hidden = false;
+        progressTrack.hidden = false;
         updateProgress();
+        widget.hidden = false;
+      } else if (onHome && hasPost) {
+        // 首页：显示全站文章总字数；阅读进度对列表无意义，隐藏
+        countLabel.textContent = '全站字数';
+        var total = siteTotal();
+        countEl.textContent = total === null ? '–' : total;
+        progressRow.hidden = true;
+        progressTrack.hidden = true;
+        widget.hidden = false;
+      } else {
+        widget.hidden = true;
       }
 
       // 首页：插入分类筛选栏并重置到「全部」；其它页面隐藏
