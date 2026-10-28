@@ -308,7 +308,7 @@
 </div>
 <script id="posts-filter-data" type="application/json">[
   {%- for post in site.posts.toArray() %}
-  {"path": "{{ url_for(post.path) }}", "cats": [{%- for c in post.categories.toArray() %}"{{ c.name }}"{% if not loop.last %}, {% endif %}{% endfor %}], "len": {{ post.length }} }{{ "," if not loop.last }}
+  {"path": "{{ url_for(post.path) }}", "cats": [{%- for c in post.categories.toArray() %}"{{ c.name }}"{% if not loop.last %}, {% endif %}{% endfor %}], "len": {{ post.length }}, "sticky": {{ post.sticky or 0 }} }{{ "," if not loop.last }}
   {%- endfor %}
 ]</script>
 
@@ -558,7 +558,8 @@
       document.querySelectorAll('.main-inner .post-block').forEach(function (block) {
         var link = block.querySelector('.post-title-link');
         var entry = link && byPath[link.getAttribute('href')];
-        var match = !activeCat || (entry && entry.cats.indexOf(activeCat) !== -1);
+        // 置顶文章（sticky > 0）在所有分类下都保持显示
+        var match = !activeCat || (entry && (entry.sticky || entry.cats.indexOf(activeCat) !== -1));
         block.hidden = !match;
         if (match) {
           count++;
@@ -584,6 +585,7 @@
       }
 
       // 首页：插入分类筛选栏并重置到「全部」；其它页面隐藏
+      // （置顶文章由 hexo-generator-index 按 sticky 值排到最前，筛选只做显隐、不会打乱顺序）
       var anchor = document.querySelector('.main-inner .post-block');
       if (isHomePage() && anchor) {
         if (filterBar.parentNode !== anchor.parentNode) anchor.parentNode.insertBefore(filterBar, anchor);
