@@ -59,3 +59,37 @@ body {
     border-bottom-color: darken(#fc6423, 15%);
   }
 }
+
+// 代码块行号与代码逐行对齐：
+// hexo-util 的行号列（.gutter pre）字号是 1em，而代码侧内层 code.hljs 被
+// NexT 的 `code { font-size: $table-font-size }`（.875em）缩小；行高是无单位
+// 的 1.6、随各自字号缩放，于是代码每行比行号矮（1.6 × .125em ≈ 3px），
+// 行数一多行号逐渐错位。把行号列字号对齐到代码侧，两侧每行即等高。
+figure.highlight {
+  .gutter pre {
+    font-size: .875em;
+  }
+  // hljs 主题给 code.hljs 自带 1em 内边距，会让代码首行比行号低约一行，去掉
+  .code pre code {
+    padding: 0;
+  }
+}
+
+// 代码块底部「收起」按钮（配合 body-end.njk 的反复折叠功能）：
+// 与 NexT 原生 expand-btn 同位同风格，只在展开态出现
+.code-collapse-btn {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  position: absolute;
+  text-align: center;
+  cursor: pointer;
+  color: var(--highlight-foreground);
+  background-image: linear-gradient(to top, var(--highlight-background) 30%, rgba(0, 0, 0, 0) 100%);
+  padding: 1.2em 0 .5em;
+  font-size: $font-size-small;
+  user-select: none;
+  &:hover {
+    color: #fc6423;
+  }
+}

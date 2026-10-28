@@ -633,3 +633,37 @@
     refresh();
   })();
 </script>
+
+{# 代码块收起：NexT 内置 fold（codeblock.fold）是单向的——点底部箭头展开后无法再折叠。
+   这里用事件委托补一个「收起」按钮：展开后出现在代码块底部，点击恢复折叠，可反复切换 #}
+<script>
+  (function () {
+    var ADD_DELAY = 350; // 等原生展开动画结束再插入，避免高度变化中定位跳动
+
+    // 点原生 expand-btn 展开后，在容器底部补一个「收起」按钮
+    document.addEventListener('click', function (event) {
+      var btn = event.target.closest('.expand-btn');
+      if (!btn) return;
+      var box = btn.closest('.code-container') || btn.closest('.highlight');
+      if (!box || box.classList.contains('highlight-fold')) return;
+      setTimeout(function () {
+        if (box.classList.contains('highlight-fold') || box.querySelector('.code-collapse-btn')) return;
+        var rec = document.createElement('div');
+        rec.className = 'code-collapse-btn';
+        rec.innerHTML = '<i class="fa fa-angle-up fa-fw" aria-hidden="true"></i>收起';
+        box.appendChild(rec);
+      }, ADD_DELAY);
+    });
+
+    // 点「收起」恢复折叠（highlight-fold 由 NexT CSS 控制最大高度与渐隐遮罩）
+    document.addEventListener('click', function (event) {
+      var btn = event.target.closest('.code-collapse-btn');
+      if (!btn) return;
+      var box = btn.closest('.code-container') || btn.closest('.highlight');
+      if (!box) return;
+      box.classList.add('highlight-fold');
+      box.classList.remove('unfold');
+      btn.remove();
+    });
+  })();
+</script>
