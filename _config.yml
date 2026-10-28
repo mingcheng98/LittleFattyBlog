@@ -50,7 +50,7 @@ highlight:
   auto_detect: false
   tab_replace: ''
   wrap: true
-  hljs: false
+  hljs: true
 prismjs:
   preprocess: true
   line_number: true
@@ -93,6 +93,7 @@ pagination_dir: page
 include:
 exclude:
 ignore:
+  - "**/_data/**"
 
 # Extensions
 ## Plugins: https://hexo.io/plugins/
@@ -107,3 +108,12 @@ deploy:
 # 文章列表页自动摘要：只预览第一段（depth = 段落数），其余点开阅读全文
 excerpt:
   depth: 1
+
+# Word count & reading time (NexT integration)
+# Plugin: https://github.com/next-theme/hexo-word-counter
+symbols_count_time:
+  symbols: true
+  time: true
+  total_symbols: true
+  total_time: true
+  wpm: 275

@@ -294,3 +294,307 @@
     later(reveal, 12000); // 兜底：异常情况下 12s 后必定放行
   })();
 </script>
+
+{# 首页分类筛选栏：「全部」+ 各分类一栏，点击筛选下方文章列表，并显示该分类的文章数与总字数。
+   每篇文章的路径/分类/字数在构建时写进下方 JSON（全站值各页一致），pjax 切页时随页面换取新数据 #}
+<div id="posts-filter" class="posts-filter" hidden>
+  <div class="filter-tabs" role="tablist" aria-label="按分类筛选文章">
+    <button type="button" class="filter-tab is-active" data-cat="">全部</button>
+    {%- for cat in site.categories.toArray() %}
+    <button type="button" class="filter-tab" data-cat="{{ cat.name }}">{{ cat.name }}</button>
+    {%- endfor %}
+  </div>
+  <div class="filter-stats" aria-live="polite"></div>
+</div>
+<script id="posts-filter-data" type="application/json">[
+  {%- for post in site.posts.toArray() %}
+  {"path": "{{ url_for(post.path) }}", "cats": [{%- for c in post.categories.toArray() %}"{{ c.name }}"{% if not loop.last %}, {% endif %}{% endfor %}], "len": {{ post.length }} }{{ "," if not loop.last }}
+  {%- endfor %}
+]</script>
+
+{# 文章页侧边栏小卡片：字数统计 + 实时阅读进度 #}
+<div id="reading-widget" class="reading-widget" hidden>
+  <div class="reading-row">
+    <i class="far fa-file-lines" aria-hidden="true"></i>
+    <span class="reading-label">字数统计</span>
+    <b class="reading-wordcount">–</b>
+  </div>
+  <div class="reading-row">
+    <i class="fas fa-book-open" aria-hidden="true"></i>
+    <span class="reading-label">阅读进度</span>
+    <b class="reading-progress-text">0%</b>
+  </div>
+  <div class="reading-progress-track" role="progressbar" aria-label="阅读进度">
+    <div class="reading-progress-fill"></div>
+  </div>
+</div>
+
+<style>
+  /* 首页分类筛选栏 */
+  .posts-filter {
+    margin: 0 0 1.6rem;
+    padding: .8rem 1rem;
+    background: var(--card-bg-color, rgba(0, 0, 0, .02));
+    border: 1px solid rgba(0, 0, 0, .06);
+    border-radius: 6px;
+    text-align: center;
+  }
+
+  .filter-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .5rem;
+  }
+
+  .filter-tab {
+    padding: .3rem 1.1rem;
+    font-size: .92em;
+    color: var(--text-color);
+    background: transparent;
+    border: 1px solid rgba(0, 0, 0, .14);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color .2s, border-color .2s, background .2s;
+  }
+
+  .filter-tab:hover {
+    color: #d94e10;
+    border-color: #fc6423;
+  }
+
+  .filter-tab.is-active {
+    color: #fff;
+    background: linear-gradient(90deg, #fc8a5a, #fc6423);
+    border-color: transparent;
+  }
+
+  .filter-stats {
+    margin-top: .6rem;
+    font-size: .85em;
+    color: var(--text-color);
+    opacity: .72;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* 被筛选掉的文章整块隐藏 */
+  .post-block[hidden] {
+    display: none !important;
+  }
+
+  /* 侧边栏阅读小卡片 */
+  .reading-widget {
+    margin: 1rem 4px 4px;
+    padding: .8rem .9rem;
+    background: var(--content-bg-color);
+    border: 1px solid rgba(0, 0, 0, .07);
+    border-radius: 6px;
+    font-size: .8rem;
+  }
+
+  .reading-row {
+    display: flex;
+    align-items: center;
+    gap: .5em;
+    margin-bottom: .5rem;
+    color: var(--text-color);
+  }
+
+  .reading-row i {
+    width: 1.15em;
+    color: #fc6423;
+    font-size: .95em;
+    text-align: center;
+  }
+
+  .reading-label { flex: 1; }
+
+  .reading-row b {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .reading-progress-track {
+    height: 4px;
+    border-radius: 2px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, .08);
+  }
+
+  .reading-progress-fill {
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #fc8a5a, #fc6423);
+    transition: width .15s linear;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .posts-filter {
+      border-color: rgba(255, 255, 255, .1);
+    }
+
+    .filter-tab {
+      border-color: rgba(255, 255, 255, .18);
+    }
+
+    .filter-tab:hover {
+      color: #ffb28c;
+      border-color: #fc8a5a;
+    }
+
+    .reading-widget {
+      border-color: rgba(255, 255, 255, .1);
+    }
+
+    .reading-progress-track {
+      background: rgba(255, 255, 255, .12);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reading-progress-fill { transition: none; }
+  }
+
+  /* hidden 属性优先级压过上面的 display: flex */
+  #posts-filter[hidden],
+  #reading-widget[hidden] {
+    display: none !important;
+  }
+</style>
+
+<script>
+  (function () {
+    var widget = document.getElementById('reading-widget');
+    var filterBar = document.getElementById('posts-filter');
+    if (!widget || !filterBar) return;
+
+    // 侧边栏不在 pjax 更换范围内，小卡片搬进去一次即可长期复用
+    var sidebarInner = document.querySelector('.sidebar-inner');
+    if (sidebarInner) sidebarInner.appendChild(widget);
+
+    var fill = widget.querySelector('.reading-progress-fill');
+    var pctText = widget.querySelector('.reading-progress-text');
+    var countEl = widget.querySelector('.reading-wordcount');
+    var pending = false;
+
+    // 首页判定：去掉站点路径前缀后只剩空串或 page/N（带分页时也认作首页）
+    var ROOT = '{{ url_for("/") }}'.replace(/\/+$/, '');
+    function isHomePage() {
+      var rest = location.pathname.slice(ROOT.length).replace(/^\/+|\/+$/g, '');
+      return rest === '' || /^page\/\d+$/.test(rest);
+    }
+
+    // 字数格式与 hexo-word-counter 一致（999 => 1k、9999 => 10k、>=1m => 1.2m）
+    function fmtCount(n) {
+      if (n >= 1000000) return (Math.round(n / 100000) / 10) + 'm';
+      if (n > 9999) return Math.round(n / 1000) + 'k';
+      if (n > 999) return (Math.round(n / 100) / 10) + 'k';
+      return String(n);
+    }
+
+    // 字数优先读正文 meta 里 hexo-word-counter 的服务端统计值（pjax 切页后随 .main-inner 一起刷新），
+    // 取不到时按「中文字数 + 英文单词数」现算，格式与插件一致（>999 => 1.1k）
+    function readCount() {
+      var icon = document.querySelector('.post-meta .fa-file-lines');
+      var item = icon && icon.closest('.post-meta-item');
+      if (item) {
+        var spans = item.querySelectorAll('span');
+        if (spans.length) return spans[spans.length - 1].textContent.trim();
+      }
+      var body = document.querySelector('.post-body');
+      if (!body) return '–';
+      var text = body.textContent;
+      var n = (text.match(/[一-鿿]/g) || []).length + (text.match(/[A-Za-z0-9_]+/g) || []).length;
+      if (n > 9999) return Math.round(n / 1000) + 'k';
+      if (n > 999) return (Math.round(n / 100) / 10) + 'k';
+      return String(n);
+    }
+
+    // 进度定义：正文顶部抵达视口顶部为 0%，正文底部抵达视口底部为 100%
+    function updateProgress() {
+      pending = false;
+      var body = document.querySelector('.post-body');
+      if (!body) return;
+      var rect = body.getBoundingClientRect();
+      var denom = rect.height - window.innerHeight;
+      var pct = denom <= 0 ? 100 : Math.round(Math.min(100, Math.max(0, -rect.top / denom * 100)));
+      fill.style.width = pct + '%';
+      pctText.textContent = pct + '%';
+    }
+
+    function onScroll() {
+      if (!pending) {
+        pending = true;
+        requestAnimationFrame(updateProgress);
+      }
+    }
+
+    // 全局只绑一次：回调内部每次重新取 .post-body，pjax 换页后自动指向新正文
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+
+    // 分类筛选：数据（路径/分类/字数）从 JSON 读取，每次现取现解析
+    //（该 script 带 type="application/json"，pjax 切页时会随页面换新，需重新 getElementById）
+    var activeCat = '';
+
+    function setActive(cat) {
+      activeCat = cat;
+      filterBar.querySelectorAll('.filter-tab').forEach(function (tab) {
+        tab.classList.toggle('is-active', tab.getAttribute('data-cat') === cat);
+      });
+      applyFilter();
+    }
+
+    function applyFilter() {
+      var dataEl = document.getElementById('posts-filter-data');
+      var statsEl = filterBar.querySelector('.filter-stats');
+      if (!dataEl || !statsEl) return;
+      var byPath = {};
+      JSON.parse(dataEl.textContent).forEach(function (p) { byPath[p.path] = p; });
+
+      var count = 0;
+      var totalLen = 0;
+      document.querySelectorAll('.main-inner .post-block').forEach(function (block) {
+        var link = block.querySelector('.post-title-link');
+        var entry = link && byPath[link.getAttribute('href')];
+        var match = !activeCat || (entry && entry.cats.indexOf(activeCat) !== -1);
+        block.hidden = !match;
+        if (match) {
+          count++;
+          totalLen += entry ? entry.len : 0;
+        }
+      });
+      statsEl.textContent = (activeCat || '全部') + '：' + count + ' 篇 · ' + fmtCount(totalLen) + ' 字';
+    }
+
+    // 事件绑在筛选栏节点上（只绑一次，节点随 refresh 重新插回文档后监听依然有效）
+    filterBar.addEventListener('click', function (event) {
+      var tab = event.target.closest('.filter-tab');
+      if (tab) setActive(tab.getAttribute('data-cat'));
+    });
+
+    // 首次加载与每次 pjax 切页后都会触发，重算显隐与数值
+    function refresh() {
+      var hasPost = !!document.querySelector('.post-body');
+      widget.hidden = !hasPost;
+      if (hasPost) {
+        countEl.textContent = readCount();
+        updateProgress();
+      }
+
+      // 首页：插入分类筛选栏并重置到「全部」；其它页面隐藏
+      var anchor = document.querySelector('.main-inner .post-block');
+      if (isHomePage() && anchor) {
+        if (filterBar.parentNode !== anchor.parentNode) anchor.parentNode.insertBefore(filterBar, anchor);
+        filterBar.hidden = false;
+        setActive('');
+      } else {
+        filterBar.hidden = true;
+      }
+    }
+
+    document.addEventListener('page:loaded', refresh);
+    refresh();
+  })();
+</script>
