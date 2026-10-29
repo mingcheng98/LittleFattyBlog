@@ -123,6 +123,16 @@ figure.highlight {
   }
 }
 
+
+@media (prefers-color-scheme: dark) {
+  .code-container {
+    border-color: rgba(255, 255, 255, 0.1);
+    &::before {
+      border-bottom-color: rgba(255, 255, 255, 0.08);
+    }
+  }
+}
+
 // 代码块底部「收起」按钮（配合 body-end.njk 的反复折叠功能）：
 // 与 NexT 原生 expand-btn 同位同风格，只在展开态出现
 .code-collapse-btn {
@@ -139,14 +149,5 @@ figure.highlight {
   user-select: none;
   &:hover {
     color: #fc6423;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  .code-container {
-    border-color: rgba(255, 255, 255, 0.1);
-    &::before {
-      border-bottom-color: rgba(255, 255, 255, 0.08);
-    }
   }
 }
