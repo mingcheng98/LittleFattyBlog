@@ -530,12 +530,20 @@
     // 进度定义：正文顶部抵达视口顶部为 0%，正文底部抵达视口底部为 100%
     function updateProgress() {
       pending = false;
-      if (widget.hidden || progressRow.hidden) return; // 首页只显示总字数，无进度
-      var body = document.querySelector('.post-body');
-      if (!body) return;
-      var rect = body.getBoundingClientRect();
-      var denom = rect.height - window.innerHeight;
-      var pct = denom <= 0 ? 100 : Math.round(Math.min(100, Math.max(0, -rect.top / denom * 100)));
+      if (widget.hidden) return;
+      var pct;
+      if (isHomePage()) {
+        // 首页：阅读进度按整页滚动计算
+        var doc = document.documentElement;
+        var denomH = doc.scrollHeight - window.innerHeight;
+        pct = denomH <= 0 ? 100 : Math.round(Math.min(100, Math.max(0, (window.pageYOffset || doc.scrollTop || 0) / denomH * 100)));
+      } else {
+        var body = document.querySelector('.post-body');
+        if (!body) return;
+        var rect = body.getBoundingClientRect();
+        var denom = rect.height - window.innerHeight;
+        pct = denom <= 0 ? 100 : Math.round(Math.min(100, Math.max(0, -rect.top / denom * 100)));
+      }
       fill.style.width = pct + '%';
       pctText.textContent = pct + '%';
     }
@@ -606,12 +614,13 @@
         updateProgress();
         widget.hidden = false;
       } else if (onHome && hasPost) {
-        // 首页：显示全站文章总字数；阅读进度对列表无意义，隐藏
+        // 首页：显示全站文章总字数；阅读进度按整页滚动计算
         countLabel.textContent = '全站字数';
         var total = siteTotal();
         countEl.textContent = total === null ? '–' : total;
-        progressRow.hidden = true;
-        progressTrack.hidden = true;
+        progressRow.hidden = false;
+        progressTrack.hidden = false;
+        updateProgress();
         widget.hidden = false;
       } else {
         widget.hidden = true;

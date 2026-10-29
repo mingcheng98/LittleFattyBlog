@@ -60,11 +60,59 @@ body {
   }
 }
 
-// 代码块行号与代码逐行对齐：
-// hexo-util 的行号列（.gutter pre）字号是 1em，而代码侧内层 code.hljs 被
-// NexT 的 `code { font-size: $table-font-size }`（.875em）缩小；行高是无单位
-// 的 1.6、随各自字号缩放，于是代码每行比行号矮（1.6 × .125em ≈ 3px），
-// 行数一多行号逐渐错位。把行号列字号对齐到代码侧，两侧每行即等高。
+// ===== 代码块：飞书风格卡片 =====
+// 结构（NexT 生成）：.code-container > figure.highlight > table(gutter + code)。
+// 顶部工具栏用 .code-container::before 画出；语言角标(.code-lang)与复制按钮
+// (.copy-btn)由主题 JS 插入，这里从原生的"右上角大水印/悬停浮层"改为工具栏布局。
+
+.code-container {
+  margin: 0 auto 20px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  background: var(--highlight-background);
+
+  // 顶部工具栏
+  &::before {
+    content: "";
+    display: block;
+    height: 36px;
+    background: var(--highlight-gutter-background);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  figure.highlight {
+    margin: 0; // 卡片外距由容器承担，figure 自带 0 auto 20px 会撑出缝隙
+  }
+
+  // 语言名：原生是右上角 40px 大水印，改为工具栏左侧小标签
+  .code-lang {
+    top: 9px;
+    left: 14px;
+    right: auto;
+    font-size: 12px;
+    line-height: 18px;
+    opacity: 0.65;
+  }
+
+  // 复制按钮：常显半透明，悬停加深（原生默认样式是灰色渐变小按钮，先抹平）
+  .copy-btn {
+    top: 7px;
+    right: 8px;
+    opacity: 0.55;
+    background: none;
+    background-image: none;
+    border: 0;
+    border-radius: 4px;
+    color: var(--highlight-foreground);
+  }
+}
+
+// 行号与代码逐行对齐：
+// 行号列(.gutter pre)原生字号 1em，而代码侧内层 code.hljs 被 NexT 的
+// `code { font-size: $table-font-size }`(.875em)缩小；行高是无单位的 1.6、
+// 随各自字号缩放，代码每行比行号矮(1.6 × .125em ≈ 3px)，行数一多行号逐渐错位。
+// 把行号列字号对齐到代码侧，两侧每行即等高。
 figure.highlight {
   .gutter pre {
     font-size: .875em;
@@ -91,5 +139,14 @@ figure.highlight {
   user-select: none;
   &:hover {
     color: #fc6423;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .code-container {
+    border-color: rgba(255, 255, 255, 0.1);
+    &::before {
+      border-bottom-color: rgba(255, 255, 255, 0.08);
+    }
   }
 }
