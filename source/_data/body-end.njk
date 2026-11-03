@@ -643,6 +643,115 @@
   })();
 </script>
 
+{# 点击烟花：页面任意处单击鼠标，在点击处炸开一团粒子。
+   纯 canvas 自绘（无第三方库/CDN），画布不拦截点击；pjax 切页会重新执行本块，
+   用 window 标志位保证只初始化一次 #}
+<canvas id="click-fireworks" aria-hidden="true"></canvas>
+
+<style>
+  #click-fireworks {
+    position: fixed;
+    inset: 0;
+    /* 高于页面内容、低于进站动画(10000)/关于过渡页(9999) */
+    z-index: 9998;
+    pointer-events: none;
+  }
+</style>
+
+<script>
+  (function () {
+    if (window.__clickFireworks) return; // pjax 切页重复执行守卫
+    window.__clickFireworks = true;
+
+    // 与站内其它动效一致：偏好减少动效时不启用
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    var canvas = document.getElementById('click-fireworks');
+    var ctx = canvas.getContext('2d');
+    var particles = [];
+    var MAX_PARTICLES = 600; // 活跃粒子上限，连点也不卡
+    var running = false;
+    var dpr = 1;
+
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // 在 (x, y) 炸开一团粒子：一发一个基础色相，粒子在色相附近小幅散开
+    function spawn(x, y) {
+      var hue = Math.random() * 360;
+      var count = 50 + (Math.random() * 20) | 0;
+      for (var i = 0; i < count; i++) {
+        var angle = Math.random() * Math.PI * 2;
+        var speed = 1.5 + Math.random() * 5.5;
+        particles.push({
+          x: x, y: y,
+          px: x, py: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 1,
+          decay: 0.008 + Math.random() * 0.014,
+          hue: hue + (Math.random() * 24 - 12),
+          flash: i < 3 // 头几颗粒子更亮更大，充当爆心闪光
+        });
+      }
+      if (!running) {
+        running = true;
+        requestAnimationFrame(loop);
+      }
+    }
+
+    function loop() {
+      // 不清屏，而是把已有像素逐渐变透明 → 粒子拖出渐隐尾迹
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // 叠加发光
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineWidth = 2;
+
+      for (var i = particles.length - 1; i >= 0; i--) {
+        var p = particles[i];
+        p.px = p.x; p.py = p.y;
+        p.vx *= 0.985;           // 空气阻力
+        p.vy = p.vy * 0.985 + 0.08; // 阻力 + 重力
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= p.decay;
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+        var alpha = p.life * (p.flash ? 1.5 : 1);
+        ctx.strokeStyle = 'hsla(' + p.hue + ', 100%, ' + (p.flash ? 85 : 60) + '%, ' + alpha + ')';
+        ctx.beginPath();
+        ctx.moveTo(p.px, p.py);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+      }
+
+      if (particles.length) {
+        requestAnimationFrame(loop);
+      } else {
+        // 粒子放尽：清空画布并停表
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        running = false;
+      }
+    }
+
+    document.addEventListener('click', function (event) {
+      // 粒子满员时忽略新点击，保证已炸开的烟花完整放完
+      if (particles.length >= MAX_PARTICLES) return;
+      spawn(event.clientX, event.clientY);
+    });
+  })();
+</script>
+
 {# 代码块收起：NexT 内置 fold（codeblock.fold）是单向的——点底部箭头展开后无法再折叠。
    这里用事件委托补一个「收起」按钮：展开后出现在代码块底部，点击恢复折叠，可反复切换 #}
 <script>
