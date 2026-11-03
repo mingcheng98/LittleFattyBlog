@@ -652,6 +652,8 @@
   #click-fireworks {
     position: fixed;
     inset: 0;
+    width: 100%;
+    height: 100%;
     /* 高于页面内容、低于进站动画(10000)/关于过渡页(9999) */
     z-index: 9998;
     pointer-events: none;
@@ -682,24 +684,29 @@
     window.addEventListener('resize', resize);
     resize();
 
-    // 在 (x, y) 炸开一团粒子：一发一个基础色相，粒子在色相附近小幅散开
+    // 在 (x, y)（即鼠标点击处）炸开一团粒子：一发一个基础色相，粒子在色相附近小幅散开
     function spawn(x, y) {
       var hue = Math.random() * 360;
-      var count = 50 + (Math.random() * 20) | 0;
+      var count = 30 + (Math.random() * 15) | 0;
       for (var i = 0; i < count; i++) {
         var angle = Math.random() * Math.PI * 2;
-        var speed = 1.5 + Math.random() * 5.5;
+        var speed = 0.6 + Math.random() * 2.2; // 低初速 + 短寿命，爆炸范围保持紧凑
         particles.push({
           x: x, y: y,
           px: x, py: y,
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed,
           life: 1,
-          decay: 0.008 + Math.random() * 0.014,
+          decay: 0.02 + Math.random() * 0.02,
           hue: hue + (Math.random() * 24 - 12),
-          flash: i < 3 // 头几颗粒子更亮更大，充当爆心闪光
+          glow: false
         });
       }
+      // 爆心闪光：原地亮一个小圆并快速熄灭，强化「就在点击处炸开」的定位感
+      particles.push({
+        x: x, y: y, px: x, py: y, vx: 0, vy: 0,
+        life: 1, decay: 0.12, hue: hue, glow: true
+      });
       if (!running) {
         running = true;
         requestAnimationFrame(loop);
@@ -713,26 +720,35 @@
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       // 叠加发光
       ctx.globalCompositeOperation = 'lighter';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
 
       for (var i = particles.length - 1; i >= 0; i--) {
         var p = particles[i];
         p.px = p.x; p.py = p.y;
-        p.vx *= 0.985;           // 空气阻力
-        p.vy = p.vy * 0.985 + 0.08; // 阻力 + 重力
-        p.x += p.vx;
-        p.y += p.vy;
+        if (!p.glow) {
+          p.vx *= 0.985;           // 空气阻力
+          p.vy = p.vy * 0.985 + 0.05; // 阻力 + 轻微重力
+          p.x += p.vx;
+          p.y += p.vy;
+        }
         p.life -= p.decay;
         if (p.life <= 0) {
           particles.splice(i, 1);
           continue;
         }
-        var alpha = p.life * (p.flash ? 1.5 : 1);
-        ctx.strokeStyle = 'hsla(' + p.hue + ', 100%, ' + (p.flash ? 85 : 60) + '%, ' + alpha + ')';
-        ctx.beginPath();
-        ctx.moveTo(p.px, p.py);
-        ctx.lineTo(p.x, p.y);
-        ctx.stroke();
+        if (p.glow) {
+          // 爆心：原地的亮圆，随生命收缩
+          ctx.fillStyle = 'hsla(' + p.hue + ', 100%, 85%, ' + p.life + ')';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 2 + 4 * p.life, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.strokeStyle = 'hsla(' + p.hue + ', 100%, 60%, ' + p.life + ')';
+          ctx.beginPath();
+          ctx.moveTo(p.px, p.py);
+          ctx.lineTo(p.x, p.y);
+          ctx.stroke();
+        }
       }
 
       if (particles.length) {
